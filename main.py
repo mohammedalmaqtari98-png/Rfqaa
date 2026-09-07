@@ -21,6 +21,7 @@ SOURCE_CHANNELS = [
     "million_2026",
     "arabickindle1",
     "art_of_book",
+    "makbatsouah",
 ]
 
 app = Flask(__name__)
