@@ -1,16 +1,25 @@
 import os
-import time
+import threading
 from flask import Flask
-import telebot
+from pyrogram import Client, filters
 
-# بيانات البوت الجديد
-TOKEN = "8646517225:AAEv8du-46beAhA9jvNNF2GTxUdkgozDSlM"
-bot = telebot.TeleBot(TOKEN)
+# إعداد خادم Flask البسيط لمنع المنصة من إغلاق البوت (كل ربع ساعة)
+app_flask = Flask(__name__)
 
-# معرفات القنوات المستهدفة للتحويل إليها
-TARGET_CHANNELS = ["@rafiq_words_group", "@wordscomp"]
+@app_flask.route('/')
+def home():
+    return "UserBot is running and active!"
 
-# يوزرات قنوات المصدر (بدون علامة @)
+def run_flask():
+    port = int(os.environ.get("PORT", 8080))
+    app_flask.run(host="0.0.0.0", port=port)
+
+# البيانات الرسمية المعتمدة
+API_ID = 6
+API_HASH = "eb06d4abfb49dc3eeb1aeb98ae0f581e"
+PHONE_NUMBER = os.environ.get("PHONE_NUMBER")
+
+# القنوات التسع المستهدفة الحقيقية
 SOURCE_CHANNELS = [
     "pdf_books2u",
     "syriaaa22",
@@ -20,52 +29,24 @@ SOURCE_CHANNELS = [
     "books2023",
     "million_2026",
     "arabickindle1",
-    "art_of_book",
-    "makbatsouah",
+    "art_of_book"
 ]
+TARGET_GROUP = "@rafiq_words_group"
 
-app = Flask(__name__)
+app = Client("my_userbot", api_id=API_ID, api_hash=API_HASH, phone_number=PHONE_NUMBER)
 
-
-@app.route("/")
-def home():
-    return "Bot is active and running!"
-
-
-# استقبال الرسائل أو الملفات التي يتم توجيهها أو وصولها
-@bot.message_handler(content_types=["document", "file"])
-def handle_docs(message):
-    # التأكد أن الرسالة أو الملف يخص الكتب أو من القنوات المسموحة
+@app.on_message(filters.chat(SOURCE_CHANNELS) & (filters.document | filters.photo))
+async def forward_books(client, message):
     try:
-        for target in TARGET_CHANNELS:
-            bot.forward_message(
-                chat_id=target,
-                from_chat_id=message.chat.id,
-                message_id=message.message_id,
-            )
-        print("تم تحويل الكتاب بنجاح!")
+        await message.forward(TARGET_GROUP)
     except Exception as e:
-        print(f"خطأ أثناء التوجيه: {e}")
-
+        print(f"خطأ في التحويل: {e}")
 
 if __name__ == "__main__":
-    # تشغيل سيرفر Flask لضمان عدم نوم البوت على Render
-    port = int(os.environ.get("PORT", 5000))
-
-    # تشغيل البوت بوضع البوليغ المستمر
-    import threading
-
-    def run_bot():
-        while True:
-            try:
-                print("Bot is polling...")
-                bot.infinity_polling(skip_pending=True)
-            except Exception as e:
-                print(f"Polling error: {e}")
-                time.sleep(5)
-
-    bot_thread = threading.Thread(target=run_bot)
-    bot_thread.start()
-
-    app.run(host="0.0.0.0", port=port)
-  
+    # تشغيل خادم الفلاسك في الخلفية بالتوازي مع البوت
+    t = threading.Thread(target=run_flask)
+    t.start()
+    
+    print("الـ UserBot وخادم الحماية يعملان الآن...")
+    app.run()
+    
